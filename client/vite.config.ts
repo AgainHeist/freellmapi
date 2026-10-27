@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // Bind to all interfaces and allow the Arena/e2b preview hostname.
+      // Vite 8 rejects unknown Host headers by default, which would return
+      // 403 to the proxied preview instead of the dashboard.
+      host: '0.0.0.0',
+      allowedHosts: ['.e2b.app', 'localhost', '127.0.0.1'],
       proxy: {
         // Force IPv4 — on Windows + Node 17+, `localhost` resolves to ::1 first,
         // which can collide with wslrelay / Docker Desktop listeners on the same port.

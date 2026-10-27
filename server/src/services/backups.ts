@@ -61,6 +61,14 @@ function httpError(message: string, status: number): Error {
 // what an operator expects a backup to bring back.
 const EXCLUDED_TABLES = new Set(['users', 'sessions', 'url_tokens']);
 
+// ALI-BOSS SaaS tables hold customer identities, hashed API keys, encrypted
+// provider secrets, payment records and reset tokens. The FreeLLMAPI config
+// dump is a file an operator downloads and emails around; a public SaaS needs
+// a stricter boundary, so none of these tables go into it. Production
+// installations back up the authoritative PostgreSQL database separately
+// (see docs/SAAS.md — Backup & recovery).
+const EXCLUDED_TABLE_PREFIXES = ['saas_'];
+
 /** `backups` is the on-disk backup index itself; dumping and restoring it
  *  would wipe the metadata that tracks the files. `migrations` is the schema
  *  ledger, which restore checks rather than overwrites. */
@@ -69,7 +77,7 @@ function isInternalTable(name: string): boolean {
 }
 
 export function isExcludedTable(name: string): boolean {
-  return EXCLUDED_TABLES.has(name);
+  return EXCLUDED_TABLES.has(name) || EXCLUDED_TABLE_PREFIXES.some(prefix => name.startsWith(prefix));
 }
 
 function isBackupableTable(name: string): boolean {
@@ -199,7 +207,7 @@ function renderHeader(db: Db, tables: string[], createdAt: string): string {
     `-- schema: ${schemaVersion(db)}`,
     `-- key-fingerprint: ${currentKeyFingerprint()}`,
     `-- tables: ${tables.join(', ')}`,
-    '-- excluded by policy: ' + [...EXCLUDED_TABLES].join(', '),
+    '-- excluded by policy: ' + [...EXCLUDED_TABLES].join(', ') + ', saas_* (customer data — use DATABASE_URL backups)',
     '',
   ].join('\n');
 }
@@ -399,7 +407,7 @@ export function deleteBackup(db: Db, id: number): void {
  *  produced elsewhere — and restoring it would overwrite the operator's own
  *  accounts and sessions. */
 const EXCLUDED_STATEMENT_RE = new RegExp(
-  `\\b(?:INSERT\\s+INTO|DELETE\\s+FROM|UPDATE|DROP\\s+TABLE)\\s+"?(?:${[...EXCLUDED_TABLES].join('|')})"?\\b`,
+  `\\b(?:INSERT\\s+INTO|DELETE\\s+FROM|UPDATE|DROP\\s+TABLE)\\s+"?(?:${[...EXCLUDED_TABLES].join('|')}|saas_[a-z_]+)"?\\b`,
   'i',
 );
 

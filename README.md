@@ -35,6 +35,15 @@ Your router updates its own model catalog from a signed feed: new free models, q
 
 ---
 
+> **ALI-BOSS SaaS edition.** This checkout keeps the original FreeLLMAPI router
+> intact and adds a multi-tenant AI API platform on top of it (public website,
+> signup/login, personal API keys, plans, Razorpay payments, signed webhooks,
+> subscriptions, quotas, usage analytics, playground and an admin panel).
+> The public site is at `/`, the customer dashboard at `/dashboard`, the admin
+> panel at `/admin`, and the **original operator console is preserved at
+> `/console`**. See [docs/SAAS.md](docs/SAAS.md) for setup, architecture,
+> security notes and the honest list of production gaps.
+
 ## Contents
 
 - [Why this exists](#why-this-exists)

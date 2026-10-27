@@ -18,7 +18,8 @@
     "db:migration:down": "tsx src/db/migrate/cli.ts down",
     "db:migration:fresh": "tsx src/db/migrate/cli.ts fresh",
     "db:migration:status": "tsx src/db/migrate/cli.ts status",
-    "db:migration:create": "tsx src/db/migrate/cli.ts create"
+    "db:migration:create": "tsx src/db/migrate/cli.ts create",
+    "saas:admin": "tsx src/scripts/saas-bootstrap-admin.ts"
   },
   "dependencies": {
     "@freellmapi/shared": "*",

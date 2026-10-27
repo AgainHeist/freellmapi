@@ -42,8 +42,15 @@ function betterSqliteFactory(resolvedPath: string): Db {
   return new BetterSqlite(resolvedPath) as Db;
 }
 
-export function defaultDbFactory(platform: NodeJS.Platform = process.platform): DbFactory {
-  return platform === 'android' ? nodeSqliteFactory : betterSqliteFactory;
+export function defaultDbFactory(platform?: NodeJS.Platform): DbFactory {
+  // Opt-in override for hosts where the native better-sqlite3 addon cannot be
+  // built (managed runtimes, sandboxes, Node 22.13+ images without build
+  // toolchains). Only applies to the real runtime selection (no explicit
+  // platform argument), so callers/tests that probe a specific platform keep
+  // the documented behaviour.
+  if (platform === undefined && process.env.FREEAPI_DB_DRIVER === 'node-sqlite') return nodeSqliteFactory;
+  const resolved = platform ?? process.platform;
+  return resolved === 'android' ? nodeSqliteFactory : betterSqliteFactory;
 }
 
 export function connectDb(

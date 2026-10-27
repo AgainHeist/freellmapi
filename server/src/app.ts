@@ -37,6 +37,8 @@ import { updateRouter } from './routes/update.js';
 import { moderationRouter } from './routes/moderation.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { createProxyRateLimiter, createAdminRateLimiter } from './middleware/rateLimit.js';
+import { saasRouter, paymentWebhookRouter } from './saas/routes/index.js';
+import { saasGateway } from './saas/gateway/middleware.js';
 
 // Password-guess ceiling for GET /api/keys/export. Deliberately low: a real
 // user exports keys occasionally, never ten times a minute.
@@ -195,6 +197,12 @@ export function createApp(config?: Config) {
   // their sessions off mid-conversation. body-parser skips requests whose
   // body was already parsed, so the second parser only sees what the first
   // didn't own; an over-limit body throws from whichever parser matched.
+  // Payment gateway webhook MUST read the raw bytes: signature verification
+  // hashes the exact body the gateway sent. Mounted before every JSON parser
+  // and with its own IP throttle (it is unauthenticated at the HTTP layer and
+  // authenticates itself cryptographically inside the handler instead).
+  app.use('/api/webhooks/payment', createAdminRateLimiter(), paymentWebhookRouter);
+
   app.use(
     ['/v1', '/v1beta', '/mcp', '/api/chat', '/api/generate', '/api/embed', '/api/embeddings'],
     express.json({ limit: cfg.requestBodyLimitBytes }),
@@ -236,6 +244,10 @@ export function createApp(config?: Config) {
   // session; everything else under /api/* requires a logged-in dashboard user.
   // The /v1 proxy keeps its own unified-API-key auth and is NOT gated here.
   app.use('/api/auth', authRouter);
+  // ALI-BOSS SaaS surface. Public (/plans, /models, /docs), customer
+  // (session-gated) and admin (role-gated) routers; each handler scopes every
+  // query to the tenant resolved from its session.
+  app.use('/api/saas', saasRouter);
 
   // Key export re-verifies the dashboard password, which makes it the one admin
   // endpoint a guesser can attack. The broad limiter above is sized for normal
@@ -299,6 +311,12 @@ export function createApp(config?: Config) {
   // OpenAI-compatible proxy. Per-IP rate limiting (#35 item #6) runs first so
   // it throttles unauthenticated brute-force / flood attempts before any
   // routing work. Tune via PROXY_RATE_LIMIT_RPM; 0 disables it.
+  // ALI-BOSS API gateway: API key → tenant → subscription → quota → rate
+  // limit → usage. Non-SaaS keys fall through to the original router unless
+  // SAAS_REQUIRE_KEYS=1, so existing installs are unaffected.
+  app.use('/v1', saasGateway());
+  app.use('/v1beta', saasGateway());
+
   app.use('/v1', createProxyRateLimiter(cfg.proxyRateLimitRpm));
   // Anthropic-compatible Messages API (`POST /v1/messages`, `/count_tokens`) for
   // Claude Code and anything else speaking the Anthropic SDK. Mounted BEFORE the

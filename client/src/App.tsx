@@ -461,12 +461,22 @@ function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
+// When the SPA is served from /console (ALI-BOSS SaaS mode), scope every
+// legacy dashboard route under that prefix so the public SaaS website can own
+// /, /pricing, /docs, /models, etc. Outside /console the original basename
+// behaviour is unchanged.
+function legacyConsoleBasename(): string {
+  if (typeof window === 'undefined') return import.meta.env.BASE_URL as string;
+  const p = window.location.pathname;
+  return p === '/console' || p.startsWith('/console/') ? '/console' : (import.meta.env.BASE_URL as string);
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <I18nProvider>
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <BrowserRouter basename={legacyConsoleBasename()}>
             <AuthGate>
               {/* Column, so a full-bleed route can claim the height the navbar
                   leaves without anyone having to know how tall the navbar is.
